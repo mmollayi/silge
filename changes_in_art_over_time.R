@@ -26,3 +26,20 @@ set.seed(234)
 art_folds <- vfold_cv(art_train, strata = year)
 art_folds
 
+art_rec <- recipe(year ~ medium, data = art_train) %>%
+    step_tokenize(medium) %>%
+    step_stopwords(medium) %>%
+    step_tokenfilter(medium, max_tokens = 500) %>%
+    step_tfidf(medium)
+
+
+sparse_bp <- hardhat::default_recipe_blueprint(composition = "dgCMatrix")
+lasso_spec <- linear_reg(penalty = tune(), mixture = 1) %>%
+    set_engine("glmnet")
+
+art_wf <- workflow() %>%
+    add_recipe(art_rec, blueprint = sparse_bp) %>%
+    add_model(lasso_spec)
+
+
+
