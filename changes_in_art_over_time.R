@@ -2,6 +2,7 @@ library(tidyverse)
 library(tidytext)
 library(tidymodels)
 library(textrecipes)
+library(vip)
 
 artwork <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-01-12/artwork.csv")
 
@@ -41,5 +42,26 @@ art_wf <- workflow() %>%
     add_recipe(art_rec, blueprint = sparse_bp) %>%
     add_model(lasso_spec)
 
+lambda_grid <- grid_regular(penalty(range = c(-3, 0)), levels = 20)
 
+doParallel::registerDoParallel()
+set.seed(1234)
 
+lasso_rs <- tune_grid(
+    art_wf,
+    resamples = art_folds,
+    grid = lambda_grid
+)
+
+lasso_rs
+
+autoplot(lasso_rs)
+show_best(lasso_rs, "rmse")
+
+best_rmse <- select_best(lasso_rs, "rmse")
+
+final_lasso <- finalize_workflow(art_wf, best_rmse)
+final_lasso
+
+art_final <- last_fit(final_lasso, art_split)
+collect_metrics(art_final)
